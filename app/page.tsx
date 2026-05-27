@@ -1,9 +1,7 @@
 'use client'
-
 import { useEffect, useMemo, useState } from 'react'
 import { groupsData } from '../data/groups.js'
 import { supabase } from '../lib/supabase.js'
-
 export default function Home() {
 
   const [username, setUsername] = useState('')
@@ -225,21 +223,112 @@ export default function Home() {
 
   }, [predictions, officialResults])
 
+  const calculateTable = () => {
+
+    const table: any = {}
+
+    groupsData[selectedGroup].forEach(
+      (match) => {
+
+        const prediction =
+          predictions.find(
+            (p) =>
+              p.username === savedUser &&
+              p.home_team === match[0] &&
+              p.away_team === match[1]
+          )
+
+        if (!prediction) return
+
+        const teams = [
+          match[0],
+          match[1]
+        ]
+
+        teams.forEach((team) => {
+
+          if (!table[team]) {
+
+            table[team] = {
+              team,
+              pts: 0,
+              gf: 0,
+              gc: 0,
+              dg: 0,
+            }
+          }
+        })
+
+        const homeGoals =
+          prediction.home_goals
+
+        const awayGoals =
+          prediction.away_goals
+
+        table[match[0]].gf +=
+          homeGoals
+
+        table[match[0]].gc +=
+          awayGoals
+
+        table[match[1]].gf +=
+          awayGoals
+
+        table[match[1]].gc +=
+          homeGoals
+
+        table[match[0]].dg =
+          table[match[0]].gf -
+          table[match[0]].gc
+
+        table[match[1]].dg =
+          table[match[1]].gf -
+          table[match[1]].gc
+
+        if (homeGoals > awayGoals) {
+
+          table[match[0]].pts += 3
+
+        } else if (
+          awayGoals > homeGoals
+        ) {
+
+          table[match[1]].pts += 3
+
+        } else {
+
+          table[match[0]].pts += 1
+          table[match[1]].pts += 1
+        }
+      }
+    )
+
+    return Object.values(table).sort(
+      (a: any, b: any) => {
+
+        if (b.pts !== a.pts)
+          return b.pts - a.pts
+
+        if (b.dg !== a.dg)
+          return b.dg - a.dg
+
+        return b.gf - a.gf
+      }
+    )
+  }
+
+  const table = calculateTable()
+
   if (!savedUser) {
 
     return (
-
       <div className='min-h-screen bg-slate-950 flex items-center justify-center p-6'>
 
-        <div className='bg-slate-900 border border-slate-700 rounded-3xl p-10 w-full max-w-md'>
+        <div className='bg-slate-900 rounded-3xl p-10 w-full max-w-md'>
 
-          <h1 className='text-4xl font-black text-white'>
+          <h1 className='text-4xl font-black'>
             PRODE MUNDIAL 2026
           </h1>
-
-          <p className='text-slate-400 mt-3'>
-            Ingresá tu nombre
-          </p>
 
           <input
             type='text'
@@ -248,12 +337,12 @@ export default function Home() {
               setUsername(e.target.value)
             }
             placeholder='Tu nombre'
-            className='w-full mt-6 bg-slate-950 border border-slate-700 rounded-xl p-4 text-white'
+            className='w-full mt-6 bg-slate-950 border border-slate-700 rounded-xl p-4'
           />
 
           <button
             onClick={loginUser}
-            className='w-full mt-6 bg-blue-600 rounded-xl p-4 text-white font-bold'
+            className='w-full mt-4 bg-blue-600 rounded-xl p-4 font-bold'
           >
             Entrar
           </button>
@@ -270,7 +359,7 @@ export default function Home() {
 
       <div className='max-w-7xl mx-auto space-y-8'>
 
-        <div className='bg-slate-900 rounded-3xl p-8 border border-slate-700 flex justify-between flex-wrap gap-4'>
+        <div className='bg-slate-900 rounded-3xl p-8 flex justify-between'>
 
           <div>
 
@@ -278,8 +367,8 @@ export default function Home() {
               PRODE MUNDIAL 2026
             </h1>
 
-            <p className='text-slate-400 mt-3'>
-              Usuario: {savedUser}
+            <p className='text-slate-400 mt-2'>
+              {savedUser}
             </p>
 
           </div>
@@ -288,15 +377,15 @@ export default function Home() {
             onClick={logout}
             className='bg-red-600 px-5 py-3 rounded-xl font-bold'
           >
-            Cambiar usuario
+            Salir
           </button>
 
         </div>
 
-        <div className='bg-slate-900 rounded-3xl p-8 border border-slate-700'>
+        <div className='bg-slate-900 rounded-3xl p-8'>
 
           <h2 className='text-3xl font-black mb-6'>
-            Ranking Global
+            Ranking
           </h2>
 
           <div className='space-y-3'>
@@ -306,22 +395,14 @@ export default function Home() {
 
                 <div
                   key={user.username}
-                  className='bg-slate-800 rounded-xl p-4 flex justify-between items-center'
+                  className='bg-slate-800 rounded-xl p-4 flex justify-between'
                 >
 
-                  <div className='flex gap-4 items-center'>
+                  <span>
+                    #{idx + 1} {user.username}
+                  </span>
 
-                    <span className='text-2xl font-black text-blue-400'>
-                      #{idx + 1}
-                    </span>
-
-                    <span className='font-bold'>
-                      {user.username}
-                    </span>
-
-                  </div>
-
-                  <span className='text-green-400 font-black text-2xl'>
+                  <span className='text-green-400 font-black'>
                     {user.points} pts
                   </span>
 
@@ -347,14 +428,44 @@ export default function Home() {
                 }
                 className={
                   selectedGroup === group
-                    ? 'bg-blue-600 px-5 py-3 rounded-xl font-bold'
-                    : 'bg-slate-800 px-5 py-3 rounded-xl font-bold'
+                    ? 'bg-blue-600 px-5 py-3 rounded-xl'
+                    : 'bg-slate-800 px-5 py-3 rounded-xl'
                 }
               >
                 {group}
               </button>
             )
           )}
+
+        </div>
+
+        <div className='bg-slate-900 rounded-3xl p-8'>
+
+          <h2 className='text-3xl font-black mb-6'>
+            Tabla del Grupo
+          </h2>
+
+          <div className='space-y-3'>
+
+            {table.map((team: any) => (
+
+              <div
+                key={team.team}
+                className='bg-slate-800 rounded-xl p-4 flex justify-between'
+              >
+
+                <span>
+                  {team.team}
+                </span>
+
+                <span>
+                  {team.pts} pts
+                </span>
+
+              </div>
+            ))}
+
+          </div>
 
         </div>
 
@@ -373,12 +484,12 @@ export default function Home() {
 
                 <div
                   key={idx}
-                  className='bg-slate-900 rounded-2xl p-5 border border-slate-700'
+                  className='bg-slate-900 rounded-2xl p-5'
                 >
 
                   <div className='flex items-center gap-4 flex-wrap'>
 
-                    <span className='w-40 font-bold'>
+                    <span className='w-40'>
                       {match[0]}
                     </span>
 
@@ -408,7 +519,7 @@ export default function Home() {
                           awayGoals
                         )
                       }}
-                      className='w-16 bg-slate-950 border border-slate-600 rounded-lg p-2 text-center'
+                      className='w-16 bg-slate-950 rounded-lg p-2 text-center'
                     />
 
                     <span>
@@ -446,10 +557,10 @@ export default function Home() {
                           awayGoals
                         )
                       }}
-                      className='w-16 bg-slate-950 border border-slate-600 rounded-lg p-2 text-center'
+                      className='w-16 bg-slate-950 rounded-lg p-2 text-center'
                     />
 
-                    <span className='w-40 font-bold'>
+                    <span className='w-40'>
                       {match[1]}
                     </span>
 
@@ -459,6 +570,44 @@ export default function Home() {
               )
             }
           )}
+
+        </div>
+
+        <div className='bg-slate-900 rounded-3xl p-8'>
+
+          <h2 className='text-3xl font-black mb-6'>
+            Predicciones de Todos
+          </h2>
+
+          <div className='space-y-3'>
+
+            {predictions.map((p) => (
+
+              <div
+                key={p.id}
+                className='bg-slate-800 rounded-xl p-4 flex gap-4 flex-wrap'
+              >
+
+                <span className='text-blue-400 font-bold'>
+                  {p.username}
+                </span>
+
+                <span>
+                  {p.home_team}
+                </span>
+
+                <span className='font-black'>
+                  {p.home_goals} - {p.away_goals}
+                </span>
+
+                <span>
+                  {p.away_team}
+                </span>
+
+              </div>
+            ))}
+
+          </div>
 
         </div>
 
