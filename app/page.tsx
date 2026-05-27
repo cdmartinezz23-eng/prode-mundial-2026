@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { groupsData } from '../data/groups.js'
 import { supabase } from '../lib/supabase.js'
 export default function Home() {
@@ -15,6 +15,9 @@ export default function Home() {
   const [predictions, setPredictions] =
     useState<any[]>([])
 
+  const [officialResults, setOfficialResults] =
+    useState<any[]>([])
+
   useEffect(() => {
 
     const currentUser =
@@ -24,18 +27,28 @@ export default function Home() {
       setSavedUser(currentUser)
     }
 
-    loadPredictions()
+    loadData()
 
   }, [])
 
-  const loadPredictions = async () => {
+  const loadData = async () => {
 
-    const { data } = await supabase
-      .from('predictions')
-      .select('*')
+    const { data: predictionsData } =
+      await supabase
+        .from('predictions')
+        .select('*')
 
-    if (data) {
-      setPredictions(data)
+    if (predictionsData) {
+      setPredictions(predictionsData)
+    }
+
+    const { data: officialData } =
+      await supabase
+        .from('official_results')
+        .select('*')
+
+    if (officialData) {
+      setOfficialResults(officialData)
     }
   }
 
@@ -109,8 +122,106 @@ export default function Home() {
         })
     }
 
-    loadPredictions()
+    loadData()
   }
+
+  const calculatePoints = (
+    prediction: any,
+    official: any
+  ) => {
+
+    if (!official) return 0
+
+    const pHome = prediction.home_goals
+    const pAway = prediction.away_goals
+
+    const oHome = official.home_goals
+    const oAway = official.away_goals
+
+    if (
+      pHome === oHome &&
+      pAway === oAway
+    ) {
+      return 5
+    }
+
+    const predictedWinner =
+      pHome > pAway
+        ? 'home'
+        : pAway > pHome
+        ? 'away'
+        : 'draw'
+
+    const officialWinner =
+      oHome > oAway
+        ? 'home'
+        : oAway > oHome
+        ? 'away'
+        : 'draw'
+
+    if (
+      predictedWinner === officialWinner
+    ) {
+      return 3
+    }
+
+    const predictedDiff =
+      pHome - pAway
+
+    const officialDiff =
+      oHome - oAway
+
+    if (
+      predictedDiff === officialDiff
+    ) {
+      return 1
+    }
+
+    return 0
+  }
+
+  const ranking = useMemo(() => {
+
+    const users: any = {}
+
+    predictions.forEach((prediction) => {
+
+      const official =
+        officialResults.find(
+          (o) =>
+            o.home_team ===
+              prediction.home_team &&
+            o.away_team ===
+              prediction.away_team
+        )
+
+      const points =
+        calculatePoints(
+          prediction,
+          official
+        )
+
+      if (
+        !users[prediction.username]
+      ) {
+
+        users[prediction.username] = {
+          username:
+            prediction.username,
+          points: 0,
+        }
+      }
+
+      users[prediction.username]
+        .points += points
+    })
+
+    return Object.values(users).sort(
+      (a: any, b: any) =>
+        b.points - a.points
+    )
+
+  }, [predictions, officialResults])
 
   if (!savedUser) {
 
@@ -140,7 +251,7 @@ export default function Home() {
 
           <button
             onClick={loginUser}
-            className='w-full mt-6 bg-blue-600 hover:bg-blue-500 transition rounded-xl p-4 text-white font-bold'
+            className='w-full mt-6 bg-blue-600 rounded-xl p-4 text-white font-bold'
           >
             Entrar
           </button>
@@ -157,7 +268,7 @@ export default function Home() {
 
       <div className='max-w-7xl mx-auto space-y-8'>
 
-        <div className='bg-slate-900 rounded-3xl p-8 border border-slate-700 flex items-center justify-between flex-wrap gap-4'>
+        <div className='bg-slate-900 rounded-3xl p-8 border border-slate-700 flex justify-between flex-wrap gap-4'>
 
           <div>
 
@@ -173,177 +284,48 @@ export default function Home() {
 
           <button
             onClick={logout}
-            className='bg-red-600 hover:bg-red-500 transition px-5 py-3 rounded-xl font-bold'
+            className='bg-red-600 px-5 py-3 rounded-xl font-bold'
           >
             Cambiar usuario
           </button>
 
         </div>
 
-        <div className='flex flex-wrap gap-3'>
-
-          {Object.keys(groupsData).map(
-            (group) => (
-
-              <button
-                key={group}
-                onClick={() =>
-                  setSelectedGroup(
-                    group as keyof typeof groupsData
-                  )
-                }
-                className={
-                  selectedGroup === group
-                    ? 'bg-blue-600 px-5 py-3 rounded-xl font-bold'
-                    : 'bg-slate-800 px-5 py-3 rounded-xl font-bold'
-                }
-              >
-                {group}
-              </button>
-            )
-          )}
-
-        </div>
-
-        <div className='space-y-4'>
-
-          {groupsData[selectedGroup].map(
-            (match, idx) => {
-
-              const prediction =
-                getPrediction(
-                  match[0],
-                  match[1]
-                )
-
-              return (
-
-                <div
-                  key={idx}
-                  className='bg-slate-900 rounded-2xl p-5 border border-slate-700'
-                >
-
-                  <div className='flex items-center gap-4 flex-wrap'>
-
-                    <span className='w-40 font-bold'>
-                      {match[0]}
-                    </span>
-
-                    <input
-                      type='number'
-                      defaultValue={
-                        prediction?.home_goals || 0
-                      }
-                      onBlur={(e) => {
-
-                        const homeGoals =
-                          e.target.value
-
-                        const awayInput =
-                          document.getElementById(
-                            `away-${idx}`
-                          ) as HTMLInputElement
-
-                        const awayGoals =
-                          awayInput?.value || 0
-
-                        savePrediction(
-                          selectedGroup,
-                          match[0],
-                          match[1],
-                          homeGoals,
-                          awayGoals
-                        )
-                      }}
-                      className='w-16 bg-slate-950 border border-slate-600 rounded-lg p-2 text-center'
-                    />
-
-                    <span>
-                      vs
-                    </span>
-
-                    <input
-                      id={`away-${idx}`}
-                      type='number'
-                      defaultValue={
-                        prediction?.away_goals || 0
-                      }
-                      onBlur={(e) => {
-
-                        const awayGoals =
-                          e.target.value
-
-                        const inputs =
-                          document.querySelectorAll(
-                            'input'
-                          )
-
-                        const homeGoals =
-                          (
-                            inputs[
-                              idx * 2
-                            ] as HTMLInputElement
-                          )?.value || 0
-
-                        savePrediction(
-                          selectedGroup,
-                          match[0],
-                          match[1],
-                          homeGoals,
-                          awayGoals
-                        )
-                      }}
-                      className='w-16 bg-slate-950 border border-slate-600 rounded-lg p-2 text-center'
-                    />
-
-                    <span className='w-40 font-bold'>
-                      {match[1]}
-                    </span>
-
-                  </div>
-
-                </div>
-              )
-            }
-          )}
-
-        </div>
-
         <div className='bg-slate-900 rounded-3xl p-8 border border-slate-700'>
 
           <h2 className='text-3xl font-black mb-6'>
-            Predicciones de todos
+            Ranking Global
           </h2>
 
           <div className='space-y-3'>
 
-            {predictions.map((p) => (
+            {ranking.map(
+              (user: any, idx) => (
 
-              <div
-                key={p.id}
-                className='bg-slate-800 rounded-xl p-4 flex flex-wrap gap-4 items-center'
-              >
+                <div
+                  key={user.username}
+                  className='bg-slate-800 rounded-xl p-4 flex justify-between items-center'
+                >
 
-                <span className='font-bold text-blue-400'>
-                  {p.username}
-                </span>
+                  <div className='flex gap-4 items-center'>
 
-                <span>
-                  {p.home_team}
-                </span>
+                    <span className='text-2xl font-black text-blue-400'>
+                      #{idx + 1}
+                    </span>
 
-                <span className='font-black'>
-                  {p.home_goals}
-                  {' - '}
-                  {p.away_goals}
-                </span>
+                    <span className='font-bold'>
+                      {user.username}
+                    </span>
 
-                <span>
-                  {p.away_team}
-                </span>
+                  </div>
 
-              </div>
-            ))}
+                  <span className='text-green-400 font-black text-2xl'>
+                    {user.points} pts
+                  </span>
+
+                </div>
+              )
+            )}
 
           </div>
 
