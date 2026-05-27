@@ -1,7 +1,9 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { groupsData } from '../data/groups.js'
 import { supabase } from '../lib/supabase.js'
+
 export default function Home() {
 
   const [username, setUsername] = useState('')
@@ -10,7 +12,8 @@ export default function Home() {
   const [selectedGroup, setSelectedGroup] =
     useState(Object.keys(groupsData)[0])
 
-  const [predictions, setPredictions] = useState([])
+  const [predictions, setPredictions] =
+    useState<any[]>([])
 
   useEffect(() => {
 
@@ -55,8 +58,8 @@ export default function Home() {
   }
 
   const getPrediction = (
-    home,
-    away
+    home: string,
+    away: string
   ) => {
 
     return predictions.find(
@@ -68,11 +71,11 @@ export default function Home() {
   }
 
   const savePrediction = async (
-    group,
-    home,
-    away,
-    homeGoals,
-    awayGoals
+    group: string,
+    home: string,
+    away: string,
+    homeGoals: any,
+    awayGoals: any
   ) => {
 
     if (!savedUser) return
@@ -237,7 +240,7 @@ export default function Home() {
                         const awayInput =
                           document.getElementById(
                             `away-${idx}`
-                          )
+                          ) as HTMLInputElement
 
                         const awayGoals =
                           awayInput?.value || 0
@@ -268,13 +271,17 @@ export default function Home() {
                         const awayGoals =
                           e.target.value
 
-                        const homeInput =
-                          e.target
-                            .previousElementSibling
-                            ?.previousElementSibling
+                        const inputs =
+                          document.querySelectorAll(
+                            'input'
+                          )
 
                         const homeGoals =
-                          homeInput?.value || 0
+                          (
+                            inputs[
+                              idx * 2
+                            ] as HTMLInputElement
+                          )?.value || 0
 
                         savePrediction(
                           selectedGroup,
