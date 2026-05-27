@@ -1,7 +1,9 @@
 'use client'
+
 import { useEffect, useMemo, useState } from 'react'
 import { groupsData } from '../data/groups.js'
 import { supabase } from '../lib/supabase.js'
+
 export default function Home() {
 
   const [username, setUsername] = useState('')
@@ -328,6 +330,135 @@ export default function Home() {
             )}
 
           </div>
+
+        </div>
+
+        <div className='flex flex-wrap gap-3'>
+
+          {Object.keys(groupsData).map(
+            (group) => (
+
+              <button
+                key={group}
+                onClick={() =>
+                  setSelectedGroup(
+                    group as keyof typeof groupsData
+                  )
+                }
+                className={
+                  selectedGroup === group
+                    ? 'bg-blue-600 px-5 py-3 rounded-xl font-bold'
+                    : 'bg-slate-800 px-5 py-3 rounded-xl font-bold'
+                }
+              >
+                {group}
+              </button>
+            )
+          )}
+
+        </div>
+
+        <div className='space-y-4'>
+
+          {groupsData[selectedGroup].map(
+            (match, idx) => {
+
+              const prediction =
+                getPrediction(
+                  match[0],
+                  match[1]
+                )
+
+              return (
+
+                <div
+                  key={idx}
+                  className='bg-slate-900 rounded-2xl p-5 border border-slate-700'
+                >
+
+                  <div className='flex items-center gap-4 flex-wrap'>
+
+                    <span className='w-40 font-bold'>
+                      {match[0]}
+                    </span>
+
+                    <input
+                      type='number'
+                      defaultValue={
+                        prediction?.home_goals || 0
+                      }
+                      onBlur={(e) => {
+
+                        const homeGoals =
+                          e.target.value
+
+                        const awayInput =
+                          document.getElementById(
+                            `away-${idx}`
+                          ) as HTMLInputElement
+
+                        const awayGoals =
+                          awayInput?.value || 0
+
+                        savePrediction(
+                          selectedGroup,
+                          match[0],
+                          match[1],
+                          homeGoals,
+                          awayGoals
+                        )
+                      }}
+                      className='w-16 bg-slate-950 border border-slate-600 rounded-lg p-2 text-center'
+                    />
+
+                    <span>
+                      vs
+                    </span>
+
+                    <input
+                      id={`away-${idx}`}
+                      type='number'
+                      defaultValue={
+                        prediction?.away_goals || 0
+                      }
+                      onBlur={(e) => {
+
+                        const awayGoals =
+                          e.target.value
+
+                        const inputs =
+                          document.querySelectorAll(
+                            'input'
+                          )
+
+                        const homeGoals =
+                          (
+                            inputs[
+                              idx * 2
+                            ] as HTMLInputElement
+                          )?.value || 0
+
+                        savePrediction(
+                          selectedGroup,
+                          match[0],
+                          match[1],
+                          homeGoals,
+                          awayGoals
+                        )
+                      }}
+                      className='w-16 bg-slate-950 border border-slate-600 rounded-lg p-2 text-center'
+                    />
+
+                    <span className='w-40 font-bold'>
+                      {match[1]}
+                    </span>
+
+                  </div>
+
+                </div>
+              )
+            }
+          )}
 
         </div>
 
