@@ -1,16 +1,16 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import { groupsData } from '../data/groups.js'
 import { supabase } from '../lib/supabase.js'
-
 export default function Home() {
 
   const [username, setUsername] = useState('')
   const [savedUser, setSavedUser] = useState('')
 
   const [selectedGroup, setSelectedGroup] =
-    useState(Object.keys(groupsData)[0])
+    useState<keyof typeof groupsData>(
+      Object.keys(groupsData)[0] as keyof typeof groupsData
+    )
 
   const [predictions, setPredictions] =
     useState<any[]>([])
@@ -188,7 +188,9 @@ export default function Home() {
               <button
                 key={group}
                 onClick={() =>
-                  setSelectedGroup(group)
+                  setSelectedGroup(
+                    group as keyof typeof groupsData
+                  )
                 }
                 className={
                   selectedGroup === group
